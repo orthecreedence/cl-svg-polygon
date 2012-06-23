@@ -6,8 +6,6 @@
   (:export :parse-groups))
 (in-package :svg-load)
 
-(defparameter *doc* (xmls:parse (file-contents "house2.svg")))
-
 (defmacro with-plist-string-reads (plist bindings &body body)
   "Helper macro to make convert-to-points much more readable. Basically wraps
   around reading values from a string in a plist and binding the result to a
@@ -44,14 +42,17 @@
   (case (intern (string-upcase (getf obj :type)))
     (rect
       (with-plist-string-reads obj ((x :x) (y :y) (w :width) (h :height)) 
-        (vector (list x y) (list (+ x w) (- y h)))))
+        (vector (list x y)
+                (list (+ x w) y)
+                (list (+ x w) (+ y h))
+                (list x (+ y h)))))
     (polygon
       (let* ((pairs (split-sequence:split-sequence #\space (getf obj :points)))
              (points (loop for pair in pairs
                            if (find #\, pair) collect (split-sequence:split-sequence #\, pair))))
         (coerce points 'vector)))
     (path
-      (get-points-from-path (getf obj :d) :curve-resolution curve-resolution :ignore-errors ignore-errors))
+      (coerce (get-points-from-path (getf obj :d) :curve-resolution curve-resolution :ignore-errors ignore-errors) 'vector))
     (ellipse 
       (with-plist-string-reads obj ((x :cx) (y :cy) (rx :rx) (ry :ry))
         (get-points-from-ellipse x y rx ry :curve-resolution curve-resolution)))
@@ -253,16 +254,17 @@
 (defun get-points-from-ellipse (x y rx ry &key (curve-resolution 20))
   "Calculate curve-resolution points along an ellipse. Can be used for circles
   too (when rx == ry)."
-  (let ((points nil))
+  (let ((points (make-array curve-resolution)))
     (dotimes (i curve-resolution)
       (let ((rad (* i (/ (* 2 PI) curve-resolution))))
-        (push (list (coerce (+ x (* (cos rad) rx)) 'single-float)
-                    (coerce (+ y (* (sin rad) ry)) 'single-float))
-              points)))
-    (reverse points)))
+        (setf (aref points i)
+              (list (coerce (+ x (* (cos rad) rx)) 'single-float)
+                    (coerce (+ y (* (sin rad) ry)) 'single-float)))))
+    points))
 
 (defun apply-transformations (points node groups)
-  (declare (ignore points node groups)))
+  (declare (ignore node groups))
+  points)
 
 (defun tagname (obj)
   "Get the tag name of an object."
@@ -334,7 +336,7 @@
            (data (make-string len)))
       (values data (read-sequence data s)))))
 
-(defun parse-svg-string (svg-str &key (curve-resolution 10) ignore-svg-errors)
+(defun parse-svg-string (svg-str &key (curve-resolution 10) ignore-errors)
   "Parses an SVG string, creating the nodes and groups from the SVG, then
   converts each object into a set of points using the data in that object and
   the transformations from the groups the object belongs to (and the object's
@@ -347,16 +349,18 @@
   (multiple-value-bind (nodes groups)
       (parse-svg-nodes (xmls:parse svg-str))
     (mapcar (lambda (node)
-              (let* ((points (convert-to-points node :curve-resolution curve-resolution :ignore-errors ignore-svg-errors))
+              (let* ((points (convert-to-points node :curve-resolution curve-resolution :ignore-errors ignore-errors))
                      (points (apply-transformations points node groups)))
-                (append (list :points points) node)))
+                (append node (list :point-data points))))
             nodes)))
 
-(defun parse-svg-file (filename &key (curve-resolution 10) ignore-svg-errors)
+(defun parse-svg-file (filename &key (curve-resolution 10) ignore-errors)
   "Simple wrapper around parse-svg-string.
   
   SVG object curve resolutions can be set via :curve-resolution (the higher the
   value, the more accurate curves are). :ignore-errors t ignores some errors
   with unimplemented features in the SVG parsing...setting this to T will most
   likely be OK, but may lose some of the data."
-  (parse-svg-string (file-contents filename) :curve-resolution curve-resolution :ignore-svg-errors ignore-svg-errors))
+  (parse-svg-string (file-contents filename) :curve-resolution curve-resolution :ignore-errors ignore-errors))
+
+
