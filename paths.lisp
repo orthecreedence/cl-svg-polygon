@@ -1,4 +1,4 @@
-(in-package :svg-load)
+(in-package :cl-svg-polygon)
 
 (define-condition unsupported-path-command (error)
   ((text :initarg :text :reader text))

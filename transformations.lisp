@@ -1,4 +1,4 @@
-(in-package :svg-load)
+(in-package :cl-svg-polygon)
 
 (defun parse-transform (transform)
   "Turn a transform(...) into an easily-parsable list structure."
@@ -35,29 +35,43 @@
       flattened-transforms)))
 
 (defun get-matrix-from-transformation (transformation)
+  "Given a transformation in list form (FN ARG1 ARG2 ...), turn it into a matrix
+  which can be multipled to give the overall transformation for an object."
   (macrolet ((idx (var idx default)
                (let ((name (gensym)))
                  `(let ((,name (nth ,idx ,var)))
                     (if ,name ,name ,default)))))
-    (case (car transformation)
+    (case (intern (write-to-string (car transformation)) :cl-svg-polygon)
       (matrix (vector (nth 1 transformation) (nth 3 transformation) (nth 5 transformation)
                       (nth 2 transformation) (nth 4 transformation) (nth 6 transformation)
                       0 0 1))
       (translate (m-translate (nth 1 transformation) (idx transformation 2 0)))
-      (scale (m-scale (nth 1 transformation) (idx transformation 2 0))))))
+      (scale (m-scale (nth 1 transformation) (idx transformation 2 0)))
+      (rotate (let ((angle (nth 1 transformation))
+                    (center-x (idx transformation 2 0))
+                    (center-y (idx transformation 3 0)))
+                (if (and (eq 0 center-x) (eq = center-y))
+                    ;; just rotate, no offset funny business
+                    (m-rotate angle)
+                    (mat* (mat* (m-translate center-x center-y) (m-rotate angle)) (m-translate (- center-x) (- center-y))))))
+      (skewx (m-skew (nth 1 transformation) :axis :x))
+      (skewy (m-skew (nth 1 transformation) :axis :y)))))
 
 (defun apply-transformations (points object groups)
   "Apply all transformations for an object, starting from its top-level group
   and working down to the object itself."
   (let ((transformations (get-transformations object groups))
-        (matrix (id-matrix 3)))
+        (matrix (id-matrix 3))
+        (trans-points nil))
     (dolist (transform transformations)
       (setf matrix (mat* matrix (get-matrix-from-transformation transform))))
-    matrix))
+    (loop for p across points do
+      (push (butlast (matv* matrix (append p '(1)))) trans-points))
+    (values (reverse trans-points)
+            matrix)))
 
-(multiple-value-bind (nodes groups)
-    (parse-svg-nodes (xmls:parse (file-contents "world1.svg")))
-  (progn
-    (let ((node (nth 12 nodes)))
-      (apply-transformations nil node groups))))
-
+;(multiple-value-bind (nodes groups)
+;    (parse-svg-nodes (xmls:parse (file-contents "world1.svg")))
+;  (progn
+;    (let ((node (nth 12 nodes)))
+;      (apply-transformations nil node groups))))

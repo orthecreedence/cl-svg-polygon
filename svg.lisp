@@ -1,14 +1,15 @@
-(dolist (p '(xmls split-sequence cl-ppcre))
-  (ql:quickload p))
+(in-package :cl-svg-polygon)
 
-(defpackage :svg-load
-  (:use :cl)
-  (:export :parse-groups))
-(in-package :svg-load)
-
-(load "matrix")
-(load "paths")
-(load "transformations")
+(defun get-points-from-ellipse (x y rx ry &key (curve-resolution 20))
+  "Calculate curve-resolution points along an ellipse. Can be used for circles
+  too (when rx == ry)."
+  (let ((points (make-array curve-resolution)))
+    (dotimes (i curve-resolution)
+      (let ((rad (* i (/ (* 2 PI) curve-resolution))))
+        (setf (aref points i)
+              (list (coerce (+ x (* (cos rad) rx)) 'single-float)
+                    (coerce (+ y (* (sin rad) ry)) 'single-float)))))
+    points))
 
 (defmacro with-plist-string-reads (plist bindings &body body)
   "Helper macro to make convert-to-points much more readable. Basically wraps
@@ -29,17 +30,6 @@
                                                      `(read-from-string (getf ,plist ,(cadr binding)))))
      ,@body))
 
-(defun get-points-from-ellipse (x y rx ry &key (curve-resolution 20))
-  "Calculate curve-resolution points along an ellipse. Can be used for circles
-  too (when rx == ry)."
-  (let ((points (make-array curve-resolution)))
-    (dotimes (i curve-resolution)
-      (let ((rad (* i (/ (* 2 PI) curve-resolution))))
-        (setf (aref points i)
-              (list (coerce (+ x (* (cos rad) rx)) 'single-float)
-                    (coerce (+ y (* (sin rad) ry)) 'single-float)))))
-    points))
-
 (defun convert-to-points (obj &key (curve-resolution 10) ignore-errors)
   "Take an object loaded from and SVG file (most likely using parse-svg-nodes)
   and turn it into a set of points describing a polygon. Curves are
@@ -54,7 +44,7 @@
   
   The above cases in paths will throw 'unsupported-path-command command errors
   unless ignored using :ignore-errors t."
-  (case (intern (string-upcase (getf obj :type)))
+  (case (intern (string-upcase (getf obj :type)) :cl-svg-polygon)
     (rect
       (with-plist-string-reads obj ((x :x) (y :y) (w :width) (h :height)) 
         (vector (list x y)
@@ -64,7 +54,8 @@
     (polygon
       (let* ((pairs (split-sequence:split-sequence #\space (getf obj :points)))
              (points (loop for pair in pairs
-                           if (find #\, pair) collect (split-sequence:split-sequence #\, pair))))
+                           if (find #\, pair) collect (progn (setf (aref pair (search "," pair)) #\space)
+                                                             (read-from-string (format nil "(~a)" pair))))))
         (coerce points 'vector)))
     (path
       (coerce (get-points-from-path (getf obj :d) :curve-resolution curve-resolution :ignore-errors ignore-errors) 'vector))
@@ -117,7 +108,8 @@
                 (push (list :group gid :transform (parse-transform (get-node-attr node "transform")) :groups sub-groups) groups)))
             (let* ((gid parent-group)
                    (obj (list :type tag :group gid))
-                   (attrs (append (case (intern (string-upcase tag))
+                   (tagsym (intern (string-upcase tag) :cl-svg-polygon))
+                   (attrs (append (case tagsym
                                     (rect (list "x" "y" "width" "height"))
                                     (polygon (list "points"))
                                     (path (list "d"))
@@ -156,7 +148,7 @@
     (mapcar (lambda (node)
               (let* ((points (convert-to-points node :curve-resolution curve-resolution :ignore-errors ignore-errors))
                      (points (apply-transformations points node groups)))
-                (append node (list :point-data points))))
+                (append node (list :point-data (coerce points 'vector)))))
             nodes)))
 
 (defun parse-svg-file (filename &key (curve-resolution 10) ignore-errors)
