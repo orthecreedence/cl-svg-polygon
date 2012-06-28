@@ -20,11 +20,10 @@
   If Z/z ends the path in the middle, we silently return the current set of 
   points without continuing the path. The idea here is we are generating
   polygons so breaks or cutouts are not acceptable."
-  (let ((commands (cl-ppcre:split "(?=[a-zA-Z])" 
-                                  (cl-ppcre::regex-replace-all "\\s+" str-data "")))
+  (let ((commands (cl-ppcre:split "(?=[a-zA-Z])" str-data))
         (points nil)
         (first-point nil)
-        (cur-point nil)
+        (cur-point '(0 0))
         (is-closed nil)
         (last-anchor nil))
     (dolist (cmd-str commands)
