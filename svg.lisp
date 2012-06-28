@@ -128,7 +128,8 @@
               (when attrs
                 (push (append obj (loop for attr in attrs
                                         for val = (get-node-attr node attr)
-                                        if val append (list (read-from-string (format nil ":~a" attr)) val)))
+                                        for parsed = (if (and val (equal attr "transform")) (parse-transform val) val)
+                                        if parsed append (list (read-from-string (format nil ":~a" attr)) parsed)))
                       objs))))))
     (values objs groups)))
 
