@@ -57,14 +57,16 @@
       (skewx (m-skew (nth 1 transformation) :axis :x))
       (skewy (m-skew (nth 1 transformation) :axis :y)))))
 
-(defun apply-transformations (points object groups)
+(defun apply-transformations (points object groups &key invert-y)
   "Apply all transformations for an object, starting from its top-level group
   and working down to the object itself."
   (let ((transformations (get-transformations object groups))
         (matrix (id-matrix 3))
         (trans-points nil))
     (dolist (transform transformations)
-      (setf matrix (mat* matrix (get-matrix-from-transformation transform))))
+      (setf matrix (mat* (get-matrix-from-transformation transform) matrix)))
+    (when invert-y
+      (setf matrix (mat* (m-scale 1 -1) matrix)))
     (loop for p across points do
       (push (butlast (matv* matrix (append p '(1)))) trans-points))
     (values (reverse trans-points)

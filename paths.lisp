@@ -17,6 +17,8 @@
         (count (cadr args-and-count)))
     `(dotimes (,i (floor (/ (length ,args) ,count)))
        ,@body
+       (setf cur-x (car cur-point)
+             cur-y (cadr cur-point))
        (dotimes (,a ,count)
          (setf ,args (cdr ,args))))))
 
