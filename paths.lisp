@@ -4,6 +4,23 @@
   ((text :initarg :text :reader text))
   (:documentation "Thrown when an unsupported action/feature is parsed in a path."))
 
+(defun points-close-equal-p (point1 point2 &key (precision 10))
+  "Determine if two points are (about) the same. Yes, this is open to
+   interpretation, which is why it takes a precision argument =]."
+  (flet ((round-point (point)
+           (mapcar (lambda (x) (/ (floor (* x precision)) precision)) point)))
+    (equal (round-point point1) (round-point point2))))
+
+(defun replace-char (char rep str)
+  "Replace all instances of char with rep in str (non-destructive)."
+  (let ((new-str (make-string (length str))))
+    (loop for i from 0
+          for c across str do
+      (setf (aref new-str i) (if (eq c char)
+                                 rep
+                                 c)))
+    new-str))
+
 (defmacro cmd-repeat (args-and-count &body body)
   "Some commands can repeat values with the command, namely the curve commands:
        c,1,2,4,4,5,5 c,8,8,3,4,3,1
@@ -38,7 +55,10 @@
   If Z/z ends the path in the middle, we silently return the current set of 
   points without continuing the path. The idea here is we are generating
   polygons so breaks or cutouts are not acceptable."
-  (let ((commands (cl-ppcre:split "(?=[a-zA-Z])" str-data))
+  (let ((str-data (replace-char #\return #\space str-data))
+        (str-data (replace-char #\newline #\space str-data))
+        (commands (cl-ppcre:split "(?=[a-zA-Z])" str-data))
+        (scanner-empty-p (cl-ppcre:create-scanner "^[\s\n\r ]+$" :multi-line-mode t))
         (points nil)
         (first-point nil)
         (cur-point '(0 0))
@@ -55,7 +75,12 @@
       ;; ("M" "-113" "-20")
       (let* ((cmd-parts (cl-ppcre:split "((?<=[A-Za-z])|(?=\-)|,| )" cmd-str))
              (cmd (aref (car cmd-parts) 0))
-             (args (mapcar (lambda (a) (read-from-string a)) (cdr cmd-parts)))
+             ;(forget (format t "cmd: ~s~%" cmd-parts))
+             (args (mapcar (lambda (a)
+                             (if (cl-ppcre:scan scanner-empty-p a)
+                                 nil
+                                 (read-from-string a)))
+                           (cdr cmd-parts)))
              (cur-x (car cur-point))
              (cur-y (cadr cur-point)))
         ;; process the commands (http://www.w3.org/TR/SVG/paths.html)
@@ -190,7 +215,7 @@
           (#\Z (setf is-closed t))))
       (when (= (length points) 1)
         (setf first-point (car points))))
-    (reverse (if (equal (car points) first-point)
+    (reverse (if (points-close-equal-p (car points) first-point)
                  (cdr points)
                  points))))
 
