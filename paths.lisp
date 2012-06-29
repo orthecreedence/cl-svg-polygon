@@ -28,7 +28,7 @@
   :curve-resolution).
 
   Arcs (A/a) commands are not supported.
-  Z/z in the middle of the path is not supported.
+  Z/z in the middle of the path is not supported (path must be continuous).
 
   Both these cases can be ignored with :ignore-errors t.
   
