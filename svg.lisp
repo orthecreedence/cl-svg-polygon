@@ -117,7 +117,7 @@
                                     (circle (list "cx" "cy" "r"))
                                     (t nil)))))
               (when attrs
-                (push (append obj (loop for attr in (append attrs (list "transform" "fill"))
+                (push (append obj (loop for attr in (append attrs (list "transform" "fill" "style"))
                                         for val = (get-node-attr node attr)
                                         for parsed = (if (and val (equal attr "transform")) (parse-transform val) val)
                                         if parsed append (list (read-from-string (format nil ":~a" attr)) parsed)))
