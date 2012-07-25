@@ -28,11 +28,7 @@
       (traverse-groups object-group groups))
     (when object-transform
       (push object-transform transformations))
-    (let ((flattened-transforms nil))
-      (dolist (transforms transformations)
-        (dolist (transform transforms)
-          (push transform flattened-transforms)))
-      flattened-transforms)))
+    transformations))
 
 (defun get-matrix-from-transformation (transformation)
   "Given a transformation in list form (FN ARG1 ARG2 ...), turn it into a matrix
@@ -50,7 +46,7 @@
       (rotate (let ((angle (nth 1 transformation))
                     (center-x (idx transformation 2 0))
                     (center-y (idx transformation 3 0)))
-                (if (and (eq 0 center-x) (eq = center-y))
+                (if (and (eq 0 center-x) (eq 0 center-y))
                     ;; just rotate, no offset funny business
                     (m-rotate angle)
                     (mat* (mat* (m-translate center-x center-y) (m-rotate angle)) (m-translate (- center-x) (- center-y))))))
