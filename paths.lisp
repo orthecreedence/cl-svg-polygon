@@ -73,7 +73,7 @@
 
       ;; this (let) splits the command from "M-113-20" to
       ;; ("M" "-113" "-20")
-      (let* ((cmd-parts (cl-ppcre:split "((?<=[A-Za-z])|(?=\-)|,| )" cmd-str))
+      (let* ((cmd-parts (cl-ppcre:split "( |,|(?<=[A-Za-z])|(?=\-))" cmd-str))
              (cmd (aref (car cmd-parts) 0))
              ;(forget (format t "cmd: ~s~%" cmd-parts))
              (args (mapcar (lambda (a)
