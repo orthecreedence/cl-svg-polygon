@@ -1,6 +1,6 @@
 cl-svg-polygon
 ==============
-(Or svgp for short). This is a library that takes an SVG file and generates, for each SVG object, a
+(Or svgp for short). This is a pure-lisp library that takes an SVG file and generates, for each SVG object, a
 set of points that outline the object. It approximates curves based on a given resolution: the 
 higher the resolution, the more accurate the curve is (this works for paths, circles, ellipses).
 This package relies on [xmls](http://common-lisp.net/project/xmls/) to parse the SVG file's XML.
@@ -32,12 +32,12 @@ Here are the keyword parameters you can give the the (parse-svg-\* ...) function
 
     :curve-resolution    ; How many points each curve will use. Higher == more accurate
     :ignore-errors       ; Ignore parsing errors. This really only applies when arcs appear in paths (currently unsupported)
-    :scale               ; Apply a scale vector '(x y) to ALL points/holes in all objects returned
+    :scale               ; Apply a scale vector '(x y) to ALL points/holes in all objects returned. Can be used with a negative value to invert the y axis.
 
 ### Grouping
 Even though the objects in the file may be in group hierarchies, they are returned as a flat list.
 The :group key contains *each* group the object is a member of, ordered from the top down. This
-can be used to create hierarchies among the objects leter on if needed.
+can be used to create hierarchies among the objects later on if needed.
 
 ### Polygon data
 The :point-data key contains the outline of the polygon as a vector of points #((x1 y1) (x2 y2) ...)
@@ -49,12 +49,17 @@ The idea behind this library is that SVG files can be used to describe objects t
 to OpenGL (or any other display system). With something like Illustrator or Inkscape, you could
 have an instant level editor for a game.
 
+In addition to polygons/holes, it tries to return as much relevant data about each object as
+possible (groups, styles, meta info) so you can make decisions about the object later on in your
+application.
+
 Triangulation
 -------------
-This library focuses no attention on turning the polygons it churns out into triangles. Please see
-[glu-tessellate](http://github.com/orthecreedence/glu-tessellate) for a triangulation library
-that wraps around GLU's tessellation system. glu-tessellate supports a number of winding schemes
-and also polygon holes.
+In the spirit of doing one thing well, this library focuses no attention on turning the polygons
+it churns out into triangles. Please see [glu-tessellate](http://github.com/orthecreedence/glu-tessellate)
+for a triangulation library that wraps around GLU's tessellation system.
+[glu-tessellate](http://github.com/orthecreedence/glu-tessellate) triangulates (with holes) and
+[supports a number of winding methods](http://www.glprogramming.com/red/chapter11.html).
 
 Limitations
 -----------
