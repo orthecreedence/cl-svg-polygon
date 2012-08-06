@@ -40,7 +40,7 @@ The `:group` key contains *each* group the object is a member of, ordered from t
 can be used to create hierarchies among the objects later on if needed.
 
 ### Polygon data
-The `:point-data` key contains the outline of the polygon as a vector of points #((x1 y1) (x2 y2) ...)
+The `:point-data` key contains the outline of the polygon as a vector of points `#((x1 y1) (x2 y2) ...)`
 and `:holes` contains holes that are cut out of the polygon.
 
 Philosophy
