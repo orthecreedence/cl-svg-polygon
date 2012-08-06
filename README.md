@@ -36,12 +36,12 @@ Here are the keyword parameters you can give the the (parse-svg-\* ...) function
 
 ### Grouping
 Even though the objects in the file may be in group hierarchies, they are returned as a flat list.
-The :group key contains *each* group the object is a member of, ordered from the top down. This
+The `:group` key contains *each* group the object is a member of, ordered from the top down. This
 can be used to create hierarchies among the objects later on if needed.
 
 ### Polygon data
-The :point-data key contains the outline of the polygon as a vector of points #((x1 y1) (x2 y2) ...)
-and :holes contains holes that are cut out of the polygon.
+The `:point-data` key contains the outline of the polygon as a vector of points #((x1 y1) (x2 y2) ...)
+and `:holes` contains holes that are cut out of the polygon.
 
 Philosophy
 ----------
@@ -70,7 +70,7 @@ There are a few limitations with this library:
  of the files I'm parsing. For now, they are just ignored.
  - Arcs in paths are not supported. I don't really care to figure out all the math involved in this
  one. If someone else does, please issue a pull request. Right now, arcs throw an error if found in
- a path string. This can be countered by passing :ignore-errors t into the (parse-svg-\*) functions,
+ a path string. This can be countered by passing `:ignore-errors t` into the (parse-svg-\*) functions,
  in which case the arc will just be lobbed off and ignored.
 
 Notes
