@@ -55,22 +55,14 @@
   If Z/z ends the path in the middle, we silently return the current set of 
   points without continuing the path. The idea here is we are generating
   polygons so breaks or cutouts are not acceptable."
-  (let ((str-data (replace-char #\return #\space str-data))
-        (str-data (replace-char #\newline #\space str-data))
-        (commands (cl-ppcre:split "(?=[a-zA-Z])" str-data))
+  (let ((commands (cl-ppcre:split "(?=[a-zA-Z])" str-data))
         (scanner-empty-p (cl-ppcre:create-scanner "^[\s\n\r ]+$" :multi-line-mode t))
         (points nil)
+        (parts nil)
         (first-point nil)
         (cur-point '(0 0))
-        (is-closed nil)
         (last-anchor nil))
     (dolist (cmd-str commands)
-      ;; check if we have an "already closed" parsing error
-      (when is-closed
-        (if ignore-errors
-            (return)
-            (error 'unsupported-path-command :text (format nil "Path tried to run commands after closing. This is unsupported by this library. Pass in :ignore-errors t to work around this: ~a" str-data))))
-
       ;; this (let) splits the command from "M-113-20" to
       ;; ("M" "-113" "-20")
       (let* ((cmd-parts (cl-ppcre:split "( |,|(?<=[A-Za-z])|(?=\-))" cmd-str))
@@ -84,7 +76,9 @@
              (cur-x (car cur-point))
              (cur-y (cadr cur-point)))
         ;; process the commands (http://www.w3.org/TR/SVG/paths.html)
-        (case cmd
+        (case (if (eq cmd #\z)
+                  (aref (string-upcase cmd) 0)
+                  cmd)
           (#\M
            (cmd-repeat (args 2)
              (setf cur-point args)
@@ -211,13 +205,13 @@
                (push (list (nth 5 args)
                            (nth 6 args)) points)
                (error 'unsupported-path-command :text (format nil "Actions A/a (elliptical arc) are not supported yet. Please form and add them yourself if you need them: ~a" str-data))))
-          (#\z (setf is-closed t))
-          (#\Z (setf is-closed t))))
+          (#\Z
+           (push (coerce (reverse (if (points-close-equal-p (car points) first-point)
+                                      (cdr points)
+                                      points)) 'vector) parts))))
       (when (= (length points) 1)
         (setf first-point (car points))))
-    (reverse (if (points-close-equal-p (car points) first-point)
-                 (cdr points)
-                 points))))
+    (apply #'values parts)))
 
 (defun bezier-cubic (x1 y1 x2 y2 ax1 ay1 ax2 ay2 &key (resolution 10))
   "Sample resolution points off of a cubic bezier curve from (x1,y1) to (x2,y2)

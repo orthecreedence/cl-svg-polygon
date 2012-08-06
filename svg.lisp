@@ -58,7 +58,7 @@
                                                              (read-from-string (format nil "(~a)" pair))))))
         (coerce points 'vector)))
     (path
-      (coerce (get-points-from-path (getf obj :d) :curve-resolution curve-resolution :ignore-errors ignore-errors) 'vector))
+      (get-points-from-path (getf obj :d) :curve-resolution curve-resolution :ignore-errors ignore-errors))
     (ellipse 
       (with-plist-string-reads obj ((x :cx) (y :cy) (rx :rx) (ry :ry))
         (get-points-from-ellipse x y rx ry :curve-resolution curve-resolution)))
@@ -145,9 +145,12 @@
   (multiple-value-bind (nodes groups)
       (parse-svg-nodes (xmls:parse svg-str))
     (mapcar (lambda (node)
-              (let* ((points (convert-to-points node :curve-resolution curve-resolution :ignore-errors ignore-errors))
-                     (points (apply-transformations points node groups :scale scale)))
-                (append node (list :point-data (coerce points 'vector)))))
+              (let* ((points-and-holes (multiple-value-list (convert-to-points node :curve-resolution curve-resolution :ignore-errors ignore-errors)))
+                     (points (apply-transformations (car points-and-holes) node groups :scale scale))
+                     (holes nil))
+                (dolist (hole (cdr points-and-holes))
+                  (push (coerce (apply-transformations hole node groups :scale scale) 'vector) holes))
+                (append node (list :point-data (coerce points 'vector) :holes holes))))
             nodes)))
 
 (defun parse-svg-file (filename &key (curve-resolution 10) ignore-errors scale)
