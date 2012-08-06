@@ -132,7 +132,7 @@
            (data (make-string len)))
       (values data (read-sequence data s)))))
 
-(defun parse-svg-string (svg-str &key (curve-resolution 10) ignore-errors invert-y)
+(defun parse-svg-string (svg-str &key (curve-resolution 10) ignore-errors scale)
   "Parses an SVG string, creating the nodes and groups from the SVG, then
   converts each object into a set of points using the data in that object and
   the transformations from the groups the object belongs to (and the object's
@@ -146,17 +146,17 @@
       (parse-svg-nodes (xmls:parse svg-str))
     (mapcar (lambda (node)
               (let* ((points (convert-to-points node :curve-resolution curve-resolution :ignore-errors ignore-errors))
-                     (points (apply-transformations points node groups :invert-y invert-y)))
+                     (points (apply-transformations points node groups :scale scale)))
                 (append node (list :point-data (coerce points 'vector)))))
             nodes)))
 
-(defun parse-svg-file (filename &key (curve-resolution 10) ignore-errors invert-y)
+(defun parse-svg-file (filename &key (curve-resolution 10) ignore-errors scale)
   "Simple wrapper around parse-svg-string.
   
   SVG object curve resolutions can be set via :curve-resolution (the higher the
   value, the more accurate curves are). :ignore-errors t ignores some errors
   with unimplemented features in the SVG parsing...setting this to T will most
   likely be OK, but may lose some of the data."
-  (parse-svg-string (file-contents filename) :curve-resolution curve-resolution :ignore-errors ignore-errors :invert-y invert-y))
+  (parse-svg-string (file-contents filename) :curve-resolution curve-resolution :ignore-errors ignore-errors :scale scale))
 
 
