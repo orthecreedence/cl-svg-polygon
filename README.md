@@ -47,7 +47,7 @@ and `:holes` contains holes that are cut out of the polygon.
 ### Object meta information
 Objects can return meta information in the final result under the `:meta` key. Currently, this is
 only used for paths, which return whether or not the path is "disconnected," meaning it's a set of
-line segments such that the end does *not* join up with the beginning (if `:disconnected` is `t`).
+line segments such that the end does *not* join up with the beginning (if `:disconnected t`).
 This can be useful in determining whether or not to bother with triangulation.
 
 More object types may use meta later on.
