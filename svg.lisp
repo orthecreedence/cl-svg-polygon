@@ -26,8 +26,8 @@
       (+ x y))
 
   Much cleaner."
-  `(let ,(loop for binding in bindings collect (list (car binding)
-                                                     `(read-from-string (getf ,plist ,(cadr binding)))))
+  `(let ,(loop for binding in bindings collect
+          (list (car binding) `(read-from-string (getf ,plist ,(cadr binding)))))
      ,@body))
 
 (defun convert-to-points (obj &key (curve-resolution 10) ignore-errors)
@@ -47,24 +47,24 @@
   (case (intern (string-upcase (getf obj :type)) :cl-svg-polygon)
     (rect
       (with-plist-string-reads obj ((x :x) (y :y) (w :width) (h :height)) 
-        (vector (list x y)
-                (list (+ x w) y)
-                (list (+ x w) (+ y h))
-                (list x (+ y h)))))
+        (list :points (list (vector (list x y)
+                                    (list (+ x w) y)
+                                    (list (+ x w) (+ y h))
+                                    (list x (+ y h)))))))
     (polygon
       (let* ((pairs (split-sequence:split-sequence #\space (getf obj :points)))
              (points (loop for pair in pairs
                            if (find #\, pair) collect (progn (setf (aref pair (search "," pair)) #\space)
                                                              (read-from-string (format nil "(~a)" pair))))))
-        (coerce points 'vector)))
+        (list :points (list (coerce points 'vector)))))
     (path
       (get-points-from-path (getf obj :d) :curve-resolution curve-resolution :ignore-errors ignore-errors))
     (ellipse 
       (with-plist-string-reads obj ((x :cx) (y :cy) (rx :rx) (ry :ry))
-        (get-points-from-ellipse x y rx ry :curve-resolution curve-resolution)))
+        (list :points (list (get-points-from-ellipse x y rx ry :curve-resolution curve-resolution)))))
     (circle
       (with-plist-string-reads obj ((x :cx) (y :cy) (r :r))
-        (get-points-from-ellipse x y r r :curve-resolution curve-resolution)))))
+        (list :points (list (get-points-from-ellipse x y r r :curve-resolution curve-resolution)))))))
 
 (defun tagname (obj)
   "Get the tag name of an object."
@@ -145,12 +145,13 @@
   (multiple-value-bind (nodes groups)
       (parse-svg-nodes (xmls:parse svg-str))
     (mapcar (lambda (node)
-              (let* ((points-and-holes (multiple-value-list (convert-to-points node :curve-resolution curve-resolution :ignore-errors ignore-errors)))
+              (let* ((points-and-meta (convert-to-points node :curve-resolution curve-resolution :ignore-errors ignore-errors))
+                     (points-and-holes (getf points-and-meta :points))
                      (points (apply-transformations (car points-and-holes) node groups :scale scale))
                      (holes nil))
                 (dolist (hole (cdr points-and-holes))
                   (push (coerce (apply-transformations hole node groups :scale scale) 'vector) holes))
-                (append node (list :point-data (coerce points 'vector) :holes holes))))
+                (append node (list :point-data (coerce points 'vector) :holes holes :meta (getf points-and-meta :meta)))))
             nodes)))
 
 (defun parse-svg-file (filename &key (curve-resolution 10) ignore-errors scale)

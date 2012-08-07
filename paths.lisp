@@ -61,7 +61,8 @@
         (parts nil)
         (first-point nil)
         (cur-point '(0 0))
-        (last-anchor nil))
+        (last-anchor nil)
+        (disconnected nil))
     (dolist (cmd-str commands)
       ;; this (let) splits the command from "M-113-20" to
       ;; ("M" "-113" "-20")
@@ -208,10 +209,17 @@
           (#\Z
            (push (coerce (reverse (if (points-close-equal-p (car points) first-point)
                                       (cdr points)
-                                      points)) 'vector) parts))))
+                                      points)) 'vector) parts)
+           (setf points nil))))
       (when (= (length points) 1)
         (setf first-point (car points))))
-    (apply #'values parts)))
+    (when (not (zerop (length points)))
+      ;; we have unfinished points. add them to the part list
+      (setf disconnected t)
+      (push (coerce (reverse (if (points-close-equal-p (car points) first-point)
+                                 (cdr points)
+                                 points)) 'vector) parts))
+    (list :points parts :meta (list :disconnected disconnected))))
 
 (defun bezier-cubic (x1 y1 x2 y2 ax1 ay1 ax2 ay2 &key (resolution 10))
   "Sample resolution points off of a cubic bezier curve from (x1,y1) to (x2,y2)
