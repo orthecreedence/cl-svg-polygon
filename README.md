@@ -25,7 +25,8 @@ Both these functions return a flat list of SVG objects (plists):
        :d "m -397.936,580.106 c -0.294,-1.122 -1.382,-2.535 -2.729,-2.046 -1.52,0.551 -2.286,1.984 ..."
        :style "fill:#ffffff"
        :point-data #((400.94077 477.2889) (400.82928 476.94577) (400.67334 476.5983) (400.4762 476.25974) ...)
-       :holes (#((400.94077 477.2889) (400.82928 476.94577) (400.67334 476.5983) (400.4762 476.25974) ...))) ...)
+       :holes (#((400.94077 477.2889) (400.82928 476.94577) (400.67334 476.5983) (400.4762 476.25974) ...))
+	   :meta (:disconnected nil)) ...)
 
 ### Call parameters
 Here are the keyword parameters you can give the the (parse-svg-\* ...) functions:
