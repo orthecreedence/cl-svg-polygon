@@ -219,7 +219,7 @@
       (push (coerce (reverse (if (points-close-equal-p (car points) first-point)
                                  (cdr points)
                                  points)) 'vector) parts))
-    (list :points parts :meta (list :disconnected disconnected))))
+    (values parts disconnected)))
 
 (defun bezier-cubic (x1 y1 x2 y2 ax1 ay1 ax2 ay2 &key (resolution 10))
   "Sample resolution points off of a cubic bezier curve from (x1,y1) to (x2,y2)

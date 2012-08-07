@@ -58,7 +58,9 @@
                                                              (read-from-string (format nil "(~a)" pair))))))
         (list :points (list (coerce points 'vector)))))
     (path
-      (get-points-from-path (getf obj :d) :curve-resolution curve-resolution :ignore-errors ignore-errors))
+      (multiple-value-bind (parts disconnected)
+          (get-points-from-path (getf obj :d) :curve-resolution curve-resolution :ignore-errors ignore-errors)
+        (list :points parts :meta (list :disconnected disconnected))))
     (ellipse 
       (with-plist-string-reads obj ((x :cx) (y :cy) (rx :rx) (ry :ry))
         (list :points (list (get-points-from-ellipse x y rx ry :curve-resolution curve-resolution)))))
