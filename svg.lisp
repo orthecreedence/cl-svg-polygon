@@ -30,20 +30,12 @@
           (list (car binding) `(read-from-string (getf ,plist ,(cadr binding)))))
      ,@body))
 
-(defun convert-to-points (obj &key (curve-resolution 10) ignore-errors)
+(defun convert-to-points (obj &key (curve-resolution 10))
   "Take an object loaded from and SVG file (most likely using parse-svg-nodes)
   and turn it into a set of points describing a polygon. Curves are
   approximated using :curve-resolution. The higher the resolution, the more
   accurate the curve will be. This works for paths with bezier curves as well
-  as ellipses and circles.
-
-  Some parts of the path spec aren't implemented, namely stopping a path in the
-  middle and continuing it with Z/z (breaks the idea of building polygons), and
-  path arcs with A/a (I don't have a use for them and I don't want to spend all
-  night implementing something I won't use).
-  
-  The above cases in paths will throw 'unsupported-path-command command errors
-  unless ignored using :ignore-errors t."
+  as ellipses and circles."
   (case (intern (string-upcase (getf obj :type)) :cl-svg-polygon)
     (rect
       (with-plist-string-reads obj ((x :x) (y :y) (w :width) (h :height)) 
@@ -59,7 +51,7 @@
         (list :points (list (coerce points 'vector)))))
     (path
       (multiple-value-bind (parts disconnected)
-          (get-points-from-path (getf obj :d) :curve-resolution curve-resolution :ignore-errors ignore-errors)
+          (get-points-from-path (getf obj :d) :curve-resolution curve-resolution)
         (list :points parts :meta (list :disconnected disconnected))))
     (ellipse 
       (with-plist-string-reads obj ((x :cx) (y :cy) (rx :rx) (ry :ry))
@@ -134,20 +126,18 @@
            (data (make-string len)))
       (values data (read-sequence data s)))))
 
-(defun parse-svg-string (svg-str &key (curve-resolution 10) ignore-errors scale)
+(defun parse-svg-string (svg-str &key (curve-resolution 10) scale)
   "Parses an SVG string, creating the nodes and groups from the SVG, then
   converts each object into a set of points using the data in that object and
   the transformations from the groups the object belongs to (and the object's
   own transformations).
 
   SVG object curve resolutions can be set via :curve-resolution (the higher the
-  value, the more accurate curves are). :ignore-errors t ignores some errors
-  with unimplemented features in the SVG parsing...setting this to T will most
-  likely be OK, but may lose some of the data."
+  value, the more accurate curves are)."
   (multiple-value-bind (nodes groups)
       (parse-svg-nodes (xmls:parse svg-str))
     (mapcar (lambda (node)
-              (let* ((points-and-meta (convert-to-points node :curve-resolution curve-resolution :ignore-errors ignore-errors))
+              (let* ((points-and-meta (convert-to-points node :curve-resolution curve-resolution))
                      (points-and-holes (getf points-and-meta :points))
                      (points (apply-transformations (car points-and-holes) node groups :scale scale))
                      (holes nil))
@@ -156,13 +146,11 @@
                 (append node (list :point-data (coerce points 'vector) :holes holes :meta (getf points-and-meta :meta)))))
             nodes)))
 
-(defun parse-svg-file (filename &key (curve-resolution 10) ignore-errors scale)
+(defun parse-svg-file (filename &key (curve-resolution 10) scale)
   "Simple wrapper around parse-svg-string.
   
   SVG object curve resolutions can be set via :curve-resolution (the higher the
-  value, the more accurate curves are). :ignore-errors t ignores some errors
-  with unimplemented features in the SVG parsing...setting this to T will most
-  likely be OK, but may lose some of the data."
-  (parse-svg-string (file-contents filename) :curve-resolution curve-resolution :ignore-errors ignore-errors :scale scale))
+  value, the more accurate curves are)."
+  (parse-svg-string (file-contents filename) :curve-resolution curve-resolution :scale scale))
 
 

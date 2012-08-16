@@ -39,16 +39,11 @@
        (dotimes (,a ,count)
          (setf ,args (cdr ,args))))))
 
-(defun get-points-from-path (str-data &key (curve-resolution 10) ignore-errors)
+(defun get-points-from-path (str-data &key (curve-resolution 10))
   "Given a string describing an SVG path, do our best to revtrieve points along
   that path. Bezier curves are approximated as accurately as needed (defined by
   :curve-resolution).
 
-  Arcs (A/a) commands are not supported.
-  Z/z in the middle of the path is not supported (path must be continuous).
-
-  Both these cases can be ignored with :ignore-errors t.
-  
   If the path generates an arc between x1,y1 and x2,y2, we just ignore the whole
   arc thing and set x2,y2 as the next point in the path.
 
@@ -195,17 +190,31 @@
                      last-anchor (list x1 y1)
                      cur-point (list x y)))))
           (#\A
-           ;; not implemented, so if ignoring errors, just grab the next x,y values and keep going
-           (if ignore-errors
-               (push (list (nth 5 args)
-                           (nth 6 args)) points)
-               (error 'unsupported-path-command :text (format nil "Actions A/a (elliptical arc) are not supported yet. Please form and add them yourself if you need them: ~a" str-data))))
+           (cmd-repeat (args 7)
+             (let ((rx (car args))
+                   (ry (cadr args))
+                   (x-rot (caddr args))
+                   (large-arc (cadddr args))
+                   (sweep-flag (cadr (cdddr args)))
+                   (x1 (car cur-point))
+                   (y1 (cadr cur-point))
+                   (x2 (+ (caddr (cdddr args)) (car cur-point)))
+                   (y2 (+ (cadddr (cdddr args)) (cadr cur-point))))
+               (setf points (append (elliptical-arc x1 y1 x2 y2 rx ry x-rot large-arc sweep-flag :resolution curve-resolution) points)
+                     cur-point (list x2 y2)))))
           (#\a
-           ;; not implemented, so if ignoring errors, just grab the next x,y values and keep going
-           (if ignore-errors
-               (push (list (nth 5 args)
-                           (nth 6 args)) points)
-               (error 'unsupported-path-command :text (format nil "Actions A/a (elliptical arc) are not supported yet. Please form and add them yourself if you need them: ~a" str-data))))
+           (cmd-repeat (args 7)
+             (let ((rx (car args))
+                   (ry (cadr args))
+                   (x-rot (caddr args))
+                   (large-arc (cadddr args))
+                   (sweep-flag (cadr (cdddr args)))
+                   (x1 (car cur-point))
+                   (y1 (cadr cur-point))
+                   (x2 (+ (caddr (cdddr args)) (car cur-point)))
+                   (y2 (+ (cadddr (cdddr args)) (cadr cur-point))))
+               (setf points (append (elliptical-arc x1 y1 x2 y2 rx ry x-rot large-arc sweep-flag :resolution curve-resolution) points)
+                     cur-point (list x2 y2)))))
           (#\Z
            (push (coerce (reverse (if (points-close-equal-p (car points) first-point)
                                       (cdr points)
@@ -251,4 +260,61 @@
                       (quadratic t-val y1 ay1 y2)) points))))
     points))
 
+(defun elliptical-arc (x1 y1 x2 y2 rx ry x-rotation large-arc-flag sweep-flag &key (resolution 10))
+  "Calculate an arc in a path. Yuck."
+  (let ((rot-mat-i (m-rotate x-rotation :reverse t))
+        (rot-mat (m-rotate x-rotation)))
+    ;; calculate a bunch of crap, mainly ellipse center x,y
+    (let* ((xy-i (matv* rot-mat-i (list (/ (- x1 x2) 2)
+                                        (/ (- y1 y2) 2))))
+           (x-i (car xy-i))
+           (y-i (cadr xy-i))
+           (rx2 (expt rx 2))
+           (ry2 (expt ry 2))
+           (x-i2 (expt x-i 2))
+           (y-i2 (expt y-i 2))
+           (cxy-m (expt (/ (- (* rx2 ry2) (* rx2 y-i2) (* ry2 x-i2))
+                           (+ (* rx2 y-i2) (* rx2 x-i2)))
+                        .5))
+           (cxy-m (if (eq large-arc-flag sweep-flag)
+                      (- cxy-m)
+                      cxy-m))
+           (cx-i (* cxy-m (/ (* rx y-i) ry)))
+           (cy-i (* cxy-m (/ (* ry x-i) (- rx))))
+           (cxy (matv* rot-mat (list cx-i cy-i)))
+           (cx (+ (car cxy) (/ (+ x1 x2) 2)))
+           (cy (+ (cadr cxy) (/ (+ y1 y2) 2))))
+      (flet ((angle (v1 v2)
+               (let ((x1 (car v1))
+                     (y1 (cadr v1))
+                     (x2 (car v2))
+                     (y2 (cadr v2)))
+                 (let ((sign (if (< 0 (- (* x1 y2) (* y1 x2)))
+                                 1
+                                 -1)))
+                   (* sign (acos (/ (dot-prod v1 v2)
+                                    (* (norm v1) (norm v2)))))))))
+        ;; calculate the start/delta angles
+        (let ((theta-1 (angle (list 1 0) (list (/ (- x-i cx-i) rx)
+                                               (/ (- y-i cy-i) ry))))
+              (theta-delta (angle (list (/ (- x-i cx-i) rx)
+                                        (/ (- y-i cy-i) ry))
+                                  (list (/ (- (- x-i) cx-i) rx)
+                                        (/ (- (- y-i) cy-i) ry)))))
+          (let ((theta-step (/ theta-delta resolution))
+                (points nil))
+            ;; create our points for the ellipse. if this were a true
+            ;; implementation, we'd do radii correction such that x2,y2 always
+            ;; fall ON the ellipse path, but i truly do not care enough to
+            ;; bother. if your SVG generator sucks, take it up with them, or
+            ;; better yet do the proper calculations and issue a pull request.
+            (dotimes (i resolution)
+              (let ((angle (+ theta-1 (* theta-step i))))
+                (let ((xy (matv* rot-mat (list (* rx (cos angle))
+                                               (* ry (sin angle))))))
+                  (push (list (+ (car xy) cx)
+                              (+ (cadr xy) cy)) points))))
+            ;; get the last point on there.
+            (push (list x2 y2) points)
+            (reverse points)))))))
 

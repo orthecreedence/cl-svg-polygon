@@ -32,7 +32,6 @@ Both these functions return a flat list of SVG objects (plists):
 Here are the keyword parameters you can give the the (parse-svg-\* ...) functions:
 
     :curve-resolution    ; How many points each curve will use. Higher == more accurate
-    :ignore-errors       ; Ignore parsing errors. This really only applies when arcs appear in paths (currently unsupported)
     :scale               ; Apply a scale vector '(x y) to ALL points/holes in all objects returned. Can be used with a negative value to invert the y axis.
 
 ### Grouping
@@ -77,16 +76,12 @@ There are a few limitations with this library:
  - Line/polyline types are ignored when parsing. This fix is coming soon.
  - Clipping/masking are not supported. Fix also coming soon, especially since masks appear in many
  of the files I'm parsing. For now, they are just ignored.
- - Arcs in paths are not supported. I don't really care to figure out all the math involved in this
- one. If someone else does, please issue a pull request. Right now, arcs throw an error if found in
- a path string. This can be countered by passing `:ignore-errors t` into the (parse-svg-\*) functions,
- in which case the arc will just be lobbed off and ignored.
 
 Notes
 -----
 I do my best to keep cl-svg-polygon up to date with the [SVG spec](http://www.w3.org/TR/SVG/).
-I do plan on fixing the limitations (with the possible exception of arcs, ugh) in a timely
-manner. If you see any bugs or problems with this library, please feel free to contact me or
-fix it and issue a pull request.
+I do plan on fixing the limitations in a timely manner. If you see any bugs or
+problems with this library, please feel free to contact me or fix it and issue
+a pull request.
 
 Thanks!

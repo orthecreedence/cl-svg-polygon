@@ -30,15 +30,15 @@
                            (* vz (aref m (+ (* i 3) 2))))))
     new))
 
-(defun m-rotate (degrees)
+(defun m-rotate (degrees &key reverse)
   "Generate a rotation matrix."
   (let* ((matrix (id-matrix 3))
          (angle-rad (* (mod degrees 360) (/ PI 180)))
          (cos (coerce (cos angle-rad) 'single-float))
          (sin (coerce (sin angle-rad) 'single-float)))
     (setf (aref matrix 0) cos
-          (aref matrix 1) (- sin)
-          (aref matrix 3) sin
+          (aref matrix 1) (if reverse sin (- sin))
+          (aref matrix 3) (if reverse (- sin) sin)
           (aref matrix 4) cos)
     matrix))
 
