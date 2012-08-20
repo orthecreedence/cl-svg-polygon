@@ -38,7 +38,8 @@ Here are the keyword parameters you can give the the (parse-svg-\* ...) function
 	                          ; from each object, allowing you to grab custom data for each object.
     :group-id-attribute-name  ; (string, default "id") Which parameter in the <g> tag to pull
 	                          ; the group id from. This is useful for programs like Inkscape
-							  ; that use "label" instead of "id".
+							  ; that use "label" instead of "id". If no data is available for the
+							  ; given field, falls back on the "id" field.
 
 ### Grouping
 Even though the objects in the file may be in group hierarchies, they are returned as a flat list.
