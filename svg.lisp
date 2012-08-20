@@ -75,7 +75,7 @@
         (return)))
     val))
 
-(defun parse-svg-nodes (nodes &optional parent-group (next-id 0))
+(defun parse-svg-nodes (nodes &key parent-group (next-id 0) save-attributes (group-id-attribute-name "id"))
   "Given an SVG doc read via xmls:parse, return two things:
 
     1. A list of plist objects describing ALL the objects found in the SVG file.
@@ -92,12 +92,17 @@
     (dolist (node (cddr nodes))
       (let ((tag (tagname node)))
         (if (equal tag "g")
-            (let* ((gid (get-node-attr node "id"))
+            (let* ((gid (get-node-attr node group-id-attribute-name))
+                   (gid (if gid gid (get-node-attr node "id")))
                    (gid (list (if gid gid (incf next-id))))
                    (full-gid (if parent-group
                                  (append parent-group gid)
                                  gid)))
-              (multiple-value-bind (sub-nodes sub-groups) (parse-svg-nodes node full-gid next-id)
+              (multiple-value-bind (sub-nodes sub-groups) (parse-svg-nodes node
+                                                                           :parent-group full-gid
+                                                                           :next-id next-id
+                                                                           :save-attributes save-attributes
+                                                                           :group-id-attribute-name group-id-attribute-name)
                 (setf objs (append sub-nodes objs))
                 (push (list :group gid :transform (parse-transform (get-node-attr node "transform")) :groups sub-groups) groups)))
             (let* ((gid parent-group)
@@ -109,7 +114,8 @@
                                     (path (list "d"))
                                     (ellipse (list "cx" "cy" "rx" "ry"))
                                     (circle (list "cx" "cy" "r"))
-                                    (t nil)))))
+                                    (t nil))
+                                  save-attributes)))
               (when attrs
                 (push (append obj (loop for attr in (append attrs (list "transform" "fill" "style" "opacity"))
                                         for val = (get-node-attr node attr)
@@ -126,7 +132,7 @@
            (data (make-string len)))
       (values data (read-sequence data s)))))
 
-(defun parse-svg-string (svg-str &key (curve-resolution 10) scale)
+(defun parse-svg-string (svg-str &key (curve-resolution 10) scale save-attributes (group-id-attribute-name "id"))
   "Parses an SVG string, creating the nodes and groups from the SVG, then
   converts each object into a set of points using the data in that object and
   the transformations from the groups the object belongs to (and the object's
@@ -135,7 +141,7 @@
   SVG object curve resolutions can be set via :curve-resolution (the higher the
   value, the more accurate curves are)."
   (multiple-value-bind (nodes groups)
-      (parse-svg-nodes (xmls:parse svg-str))
+      (parse-svg-nodes (xmls:parse svg-str) :save-attributes save-attributes :group-id-attribute-name group-id-attribute-name)
     (mapcar (lambda (node)
               (let* ((points-and-meta (convert-to-points node :curve-resolution curve-resolution))
                      (points-and-holes (getf points-and-meta :points))
@@ -146,11 +152,11 @@
                 (append node (list :point-data (coerce points 'vector) :holes holes :meta (getf points-and-meta :meta)))))
             nodes)))
 
-(defun parse-svg-file (filename &key (curve-resolution 10) scale)
+(defun parse-svg-file (filename &key (curve-resolution 10) scale save-attributes (group-id-attribute-name "id"))
   "Simple wrapper around parse-svg-string.
   
   SVG object curve resolutions can be set via :curve-resolution (the higher the
   value, the more accurate curves are)."
-  (parse-svg-string (file-contents filename) :curve-resolution curve-resolution :scale scale))
+  (parse-svg-string (file-contents filename) :curve-resolution curve-resolution :scale scale :save-attributes save-attributes :group-id-attribute-name group-id-attribute-name))
 
 

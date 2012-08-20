@@ -31,8 +31,14 @@ Both these functions return a flat list of SVG objects (plists):
 ### Call parameters
 Here are the keyword parameters you can give the the (parse-svg-\* ...) functions:
 
-    :curve-resolution    ; How many points each curve will use. Higher == more accurate
-    :scale               ; Apply a scale vector '(x y) to ALL points/holes in all objects returned. Can be used with a negative value to invert the y axis.
+    :curve-resolution         ; (integer) How many points each curve will use. Higher == more accurate
+    :scale                    ; (list) Apply a scale vector '(x y) to ALL points/holes in all
+	                          ; objects returned. Can be used with a negative value to invert the y axis.
+    :save-attributes          ; (list) This list is appended to the list of attributes to save
+	                          ; from each object, allowing you to grab custom data for each object.
+    :group-id-attribute-name  ; (string, default "id") Which parameter in the <g> tag to pull
+	                          ; the group id from. This is useful for programs like Inkscape
+							  ; that use "label" instead of "id".
 
 ### Grouping
 Even though the objects in the file may be in group hierarchies, they are returned as a flat list.
