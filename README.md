@@ -38,7 +38,7 @@ Here are the keyword parameters you can give the the (parse-svg-\* ...) function
 	                          ; from each object, allowing you to grab custom data for each object.
     :group-id-attribute-name  ; (string, default "id") Which parameter in the <g> tag to pull
 	                          ; the group id from. This is useful for programs like Inkscape
-							  ; that use "label" instead of "id". If no data is available for the
+							  ; that use "label" instead of "id." If no data is available for the
 							  ; given field, falls back on the "id" field.
 
 ### Grouping
@@ -81,9 +81,9 @@ Limitations
 There are a few limitations with this library:
 
  - Line/polyline types are ignored when parsing. This fix is coming soon.
- - Strokes are not honored. So The point list returned for a path with two points and a stroke 
+ - Strokes are not honored. So the point list returned for a path with two points and a stroke 
  will just be two points (with :disconnected t) instead of a connected polygon shape representing
- that the real object looks like. Since stroking is technically up to the drawer, it's unlikely that
+ what the real object looks like. Since stroking is technically up to the drawer, it's unlikely that
  I'll add in default support for this, however I'll probably add an option in the future to render
  strokes as part of the polygon in case you don't want to deal with it in the app =]. The meta info
  for the polygon would then specify whether or not it was a stroked polygon vs an actual polygon.
