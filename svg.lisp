@@ -1,5 +1,7 @@
 (in-package :cl-svg-polygon)
 
+(define-condition not-an-object (simple-condition) ())
+
 (defun get-points-from-ellipse (x y rx ry &key (curve-resolution 20))
   "Calculate curve-resolution points along an ellipse. Can be used for circles
   too (when rx == ry)."
@@ -58,7 +60,9 @@
         (list :points (list (get-points-from-ellipse x y rx ry :curve-resolution curve-resolution)))))
     (circle
       (with-plist-string-reads obj ((x :cx) (y :cy) (r :r))
-        (list :points (list (get-points-from-ellipse x y r r :curve-resolution curve-resolution)))))))
+        (list :points (list (get-points-from-ellipse x y r r :curve-resolution curve-resolution)))))
+    (t
+      (error 'not-an-object))))
 
 (defun tagname (obj)
   "Get the tag name of an object."
@@ -142,15 +146,20 @@
   value, the more accurate curves are)."
   (multiple-value-bind (nodes groups)
       (parse-svg-nodes (xmls:parse svg-str) :save-attributes save-attributes :group-id-attribute-name group-id-attribute-name)
-    (mapcar (lambda (node)
-              (let* ((points-and-meta (convert-to-points node :curve-resolution curve-resolution))
-                     (points-and-holes (getf points-and-meta :points))
-                     (points (apply-transformations (car points-and-holes) node groups :scale scale))
-                     (holes nil))
-                (dolist (hole (cdr points-and-holes))
-                  (push (coerce (apply-transformations hole node groups :scale scale) 'vector) holes))
-                (append node (list :point-data (coerce points 'vector) :holes holes :meta (getf points-and-meta :meta)))))
-            nodes)))
+    (remove-if
+      'null
+      (mapcar (lambda (node)
+                (handler-case
+                  (let* ((points-and-meta (convert-to-points node :curve-resolution curve-resolution))
+                         (points-and-holes (getf points-and-meta :points))
+                         (points (apply-transformations (car points-and-holes) node groups :scale scale))
+                         (holes nil))
+                    (dolist (hole (cdr points-and-holes))
+                      (push (coerce (apply-transformations hole node groups :scale scale) 'vector) holes))
+                    (append node (list :point-data (coerce points 'vector) :holes holes :meta (getf points-and-meta :meta))))
+                  (not-an-object ()
+                    nil)))
+              nodes))))
 
 (defun parse-svg-file (filename &key (curve-resolution 10) scale save-attributes (group-id-attribute-name "id"))
   "Simple wrapper around parse-svg-string.
